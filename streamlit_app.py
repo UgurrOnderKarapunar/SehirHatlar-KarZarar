@@ -3,7 +3,7 @@ import pandas as pd
 import joblib
 import numpy as np
 
-df = pd.read_excel(r"C:\Users\ugrkr\OneDrive\Masaüstü\Finals Model.xlsx")
+
 
 model = joblib.load("lightgbm_model.joblib")
 preprocessor = joblib.load("preprocessor.joblib")
