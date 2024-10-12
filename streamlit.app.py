@@ -2,7 +2,8 @@ import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
-# Load the dataset to get unique passenger line values and unique days of the week
+
+
 
 # Load the saved LightGBM model and preprocessor
 model = joblib.load("sehirhatlarılightgbm_model.joblib")
@@ -19,7 +20,6 @@ unique_ay = df['ay'].unique().tolist()
 
 # Extract unique departure time categories from the dataset (assuming this column exists)
 unique_kalkis_saat_kategori = df['kalkis_saat_kategori'].unique().tolist()
-
 
 # Define the input fields for the user to enter values
 def user_input_features():
@@ -50,7 +50,6 @@ def user_input_features():
     features = pd.DataFrame(data)
     return features
 
-
 # Streamlit app title
 st.title("Kar/Zarar Oranı Tahmini Uygulaması")
 
@@ -78,6 +77,3 @@ if 'input_processed' in locals():
         st.write(prediction[0])
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
-
-# To run the app, execute this command in your terminal:
-# streamlit run app.py
