@@ -10,7 +10,6 @@ import lightgbm as lgb
 import joblib
 import matplotlib.pyplot as plt
 
-df = pd.read_excel(r"C:\Users\ugrkr\OneDrive\Masaüstü\Finals Model.xlsx")
 
 X = df.drop("karzarar_oranı%(günlük)", axis=1)
 y = df["karzarar_oranı%(günlük)"]
