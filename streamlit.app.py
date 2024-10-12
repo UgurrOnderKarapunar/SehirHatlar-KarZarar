@@ -3,13 +3,7 @@ import pandas as pd
 import joblib
 
 # Load the dataset
-def load_data():
-    try:
-        df = pd.read_excel(r"C:\Users\ugrkr\OneDrive\Masaüstü\Finals Model.xlsx")
-        return df
-    except Exception as e:
-        st.error(f"Error loading dataset: {str(e)}")
-        st.stop()  # Stop execution if the dataset cannot be loaded
+
 
 # Load the model and preprocessor
 def load_model():
