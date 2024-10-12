@@ -1,39 +1,41 @@
-import streamlit as st
 import pandas as pd
 import joblib
+import streamlit as st
 
-# Load the dataset
+# Load the dataset to get unique passenger line values and unique days of the week
+df = pd.read_excel(r"C:\Users\ugrkr\OneDrive\Masaüstü\Finals Model.xlsx")
 
+# Load the saved LightGBM model and preprocessor
+model = joblib.load("lightgbm_model.joblib")
+preprocessor = joblib.load("preprocessor.joblib")
 
-# Load the model and preprocessor
-def load_model():
-    try:
-        model = joblib.load("sehirhatlarılightgbm_model.joblib")
-        preprocessor = joblib.load("sehirhatlarıpreprocessor.joblib")
-        return model, preprocessor
-    except Exception as e:
-        st.error(f"Error loading model or preprocessor: {str(e)}")
-        st.stop()  # Stop execution if loading fails
+# Extract unique passenger lines from the dataset
+unique_yolcu_hatti = df['yolcu_hattı'].unique().tolist()
 
-# Extract unique values for user input
-def get_unique_values(df):
-    unique_yolcu_hatti = df['yolcu_hattı'].unique().tolist()
-    unique_hafta_gunu = df['hafta_gunu_isim'].unique().tolist()
-    unique_ay = df['ay'].unique().tolist()
-    unique_kalkis_saat_kategori = df['kalkis_saat_kategori'].unique().tolist()
-    return unique_yolcu_hatti, unique_hafta_gunu, unique_ay, unique_kalkis_saat_kategori
+# Extract unique days of the week from the dataset
+unique_hafta_gunu = df['hafta_gunu_isim'].unique().tolist()
 
-# Define user input features
-def user_input_features(unique_yolcu_hatti, unique_hafta_gunu, unique_ay, unique_kalkis_saat_kategori):
+# Extract unique months from the dataset (assuming the column name is 'ay')
+unique_ay = df['ay'].unique().tolist()
+
+# Extract unique departure time categories from the dataset (assuming this column exists)
+unique_kalkis_saat_kategori = df['kalkis_saat_kategori'].unique().tolist()
+
+# Define the input fields for the user to enter values
+def user_input_features():
     toplam_ucret = st.number_input("Toplam Ücret", min_value=210.0, step=0.01)
     yolcusayisi = st.number_input("Yolcu Sayısı", min_value=0, step=1)
+    
+    # Use dynamically populated options for Kalkış Saat Kategori
     kalkis_saat_kategori = st.selectbox("Kalkış Saat Kategori", unique_kalkis_saat_kategori)
-    hafta_gunu_isim = st.selectbox("Hafta Günü", unique_hafta_gunu)
-    ay = st.selectbox("Ay", unique_ay)
+
+    hafta_gunu_isim = st.selectbox("Hafta Günü", unique_hafta_gunu)  # Dynamically populated options
+    ay = st.selectbox("Ay", unique_ay)  # Dynamically populated options for months
     yolculuksuresi_dk = st.number_input("Yolculuk Süresi (dk)", min_value=0, step=1)
-    yolcu_hatti = st.selectbox("Yolcu Hattı", unique_yolcu_hatti)
+    yolcu_hatti = st.selectbox("Yolcu Hattı", unique_yolcu_hatti)  # Dynamically populated options
     gun_sefer_sayisi = st.number_input("Günlük Sefer Sayısı", min_value=0, step=1)
 
+    # Store user input as a dataframe
     data = {
         'toplamucret': [toplam_ucret],
         'yolcusayisi': [yolcusayisi],
@@ -45,44 +47,36 @@ def user_input_features(unique_yolcu_hatti, unique_hafta_gunu, unique_ay, unique
         'gun_sefer_sayisi': [gun_sefer_sayisi]
     }
 
-    return pd.DataFrame(data)
+    features = pd.DataFrame(data)
+    return features
 
-# Main app function
-def main():
-    # Streamlit app title
-    st.title("Kar/Zarar Oranı Tahmini Uygulaması")
+# Streamlit app title
+st.title("Kar/Zarar Oranı Tahmini Uygulaması")
 
-    # Load data and model
-    df = load_data()
-    model, preprocessor = load_model()
+# Get user input
+input_df = user_input_features()
 
-    # Extract unique values
-    unique_yolcu_hatti, unique_hafta_gunu, unique_ay, unique_kalkis_saat_kategori = get_unique_values(df)
+# Display the input DataFrame for debugging
+st.write("Input DataFrame:")
+st.dataframe(input_df)
+st.write("Input DataFrame Data Types:")
+st.write(input_df.dtypes)
 
-    # Get user input
-    input_df = user_input_features(unique_yolcu_hatti, unique_hafta_gunu, unique_ay, unique_kalkis_saat_kategori)
+# Preprocess the input
+try:
+    input_processed = preprocessor.transform(input_df)
+except Exception as e:
+    st.error(f"Error during preprocessing: {str(e)}")
 
-    # Display the input DataFrame for debugging
-    st.write("Input DataFrame:")
-    st.dataframe(input_df)
-    st.write("Input DataFrame Data Types:")
-    st.write(input_df.dtypes)
-
-    # Preprocess the input
-    try:
-        input_processed = preprocessor.transform(input_df)
-    except Exception as e:
-        st.error(f"Error during preprocessing: {str(e)}")
-        return
-
-    # Make predictions if preprocessing was successful
+# Make predictions if preprocessing was successful
+if 'input_processed' in locals():
     try:
         prediction = model.predict(input_processed)
+        # Display the results
         st.subheader("Tahmin Edilen Kar/Zarar Oranı (%):")
         st.write(prediction[0])
     except Exception as e:
         st.error(f"Error during prediction: {str(e)}")
 
-# Run the app
-if __name__ == "__main__":
-    main()
+# To run the app, execute this command in your terminal:
+# streamlit run app.py
