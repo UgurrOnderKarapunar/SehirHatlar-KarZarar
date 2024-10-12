@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import joblib
 import numpy as np
-
 # Load the dataset to get unique passenger line values and unique days of the week
 
 # Load the saved LightGBM model and preprocessor
