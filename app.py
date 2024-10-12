@@ -3,7 +3,6 @@ import joblib
 import streamlit as st
 
 # Load the dataset to get unique passenger line values and unique days of the week
-df = pd.read_excel(r"C:\Users\ugrkr\OneDrive\Masaüstü\Finals Model.xlsx")
 
 # Load the saved LightGBM model and preprocessor
 model = joblib.load("lightgbm_model.joblib")
