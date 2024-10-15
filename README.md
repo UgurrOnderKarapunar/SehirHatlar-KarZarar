@@ -84,3 +84,9 @@ Bu proje, deniz taksilerin mali performansını analiz etmek için ilk adımdır
 
 Talep Tahmini Modelleri: Mevsimsel ve saatlik yolcu talebi tahminleri için makine öğrenmesi modelleri geliştirilebilir.
 Maliyet Optimizasyonu: Yakıt tüketimini giderlerini azaltacak optimizasyon yöntemleri araştırılabilir.
+
+
+
+*************************************
+
+NOT:Kodların tamamı PAYLAŞILMAMIŞTIR.
