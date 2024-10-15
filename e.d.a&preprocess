@@ -1,0 +1,386 @@
+import pandas as pd
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.preprocessing import RobustScaler, LabelEncoder
+from sklearn.feature_selection import SelectKBest, chi2
+from sklearn.impute import SimpleImputer, KNNImputer
+from sklearn.preprocessing import RobustScaler, OneHotEncoder
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import cross_validate
+from sklearn.metrics import make_scorer, accuracy_score, f1_score, recall_score
+from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.model_selection import train_test_split
+import joblib
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout
+from tensorflow.keras.callbacks import EarlyStopping
+pd.set_option('display.max_columns', None)
+pd.set_option('display.max_rows', None)
+pd.set_option('display.max_seq_item', None)
+pd.set_option('display.float_format', '{:.2f}'.format)
+df.head()
+
+
+
+  *********************E.D.A********************
+
+df.info()
+
+# Kategorik ve Sayısal Değişkenlerin Belirlenmesi
+  kategorik=df.select_dtypes(include="object").columns
+sayısal=df.select_dtypes(include=["int","float"]).columns
+zaman=df.select_dtypes(exclude=["int","float","object"]).columns
+print(f"Kategorik Değişkenler:{kategorik}")
+print(f"Sayısal Değişkenler:{sayısal}")
+print(f"Zaman Değişkenleri:{zaman}")
+
+Kategorik Değişkenler:Index(['kalkis_saat_kategori', 'hafta_gunu_isim', 'ay', 'yolculuk_kategorisi',
+       'yolcu_hattı', 'kar_mı_zarar_mı'],
+      dtype='object')
+Sayısal Değişkenler:Index(['toplamucret', 'yolcusayisi', 'yolculuksuresi(dk)',
+       'dakikalık_sefer_ücreti(tl)', 'tahminipersonel_ücreti(günlük)',
+       'toplam_maliyet', 'kar_zarar_tutarı(günlük)', 'karzarar_oranı%(günlük)',
+       'gun_sefer_sayisi'],
+      dtype='object')
+Zaman Değişkenleri:Index(['talep_edilen_yolculuk_saati'], dtype='object')
+
+*Hedef Değişken ve Diğer Değişkenlerle İlişkilerinin Görselleştirilmesi
+  plt.figure(figsize=(10, 6))
+sns.histplot(df["karzarar_oranı%(günlük)"], kde=True, bins=30)
+plt.title("Hedef Değişken: karzarar_oranı%(günlük) Dağılımı")
+plt.show()
+
+# Kategorik,Sayısal ve Zaman değişkenlerinin Dağılımı:
+for column in kategorik:
+    plt.figure(figsize=(15, 15))
+    sns.countplot(x=df[column])
+    plt.title(f'{column} Dağılımı')
+    plt.xticks(rotation=45)
+    plt.show()
+for column in sayısal:
+    plt.figure(figsize=(10, 6))
+    sns.histplot(df[column], kde=True, bins=30)
+    plt.title(f'{column} Dağılımı')
+    plt.show()
+for column in zaman:
+    plt.figure(figsize=(10, 6))
+    sns.lineplot(x=df[column], y=df.index)
+    plt.title(f'{column} Trend Analizi')
+    plt.xticks(rotation=45)
+    plt.show()
+# Hedef Değişkenle ilgili bölümler Groupbylar
+
+kar_zarar_orani_yolculuk_kategorisi = df.groupby("yolculuk_kategorisi").agg({"karzarar_oranı%(günlük)": "median"})
+
+print(kar_zarar_orani_yolculuk_kategorisi)
+karzarar_oranı%(günlük)
+yolculuk_kategorisi                         
+kısa                                 -152.51
+orta                                   -2.34
+uzun                                   48.04
+
+kar_zarar_orani_kalkis_saat_kategori1 = df.groupby(["yolcusayisi","kalkis_saat_kategori"]).agg({"karzarar_oranı%(günlük)": "median"})
+
+print(kar_zarar_orani_kalkis_saat_kategori1)
+
+yolcusayisi kalkis_saat_kategori                         
+
+ 1          akşam                                  -33.25
+            gece                                   -36.95
+            sabah                                  -26.42
+            öğle                                   -26.42
+ 2          akşam                                  -13.52
+            gece                                   -26.42
+            sabah                                  -18.67
+            öğle                                     0.88
+ 3          akşam                                   -3.05
+            gece                                   -26.42
+            sabah                                   -9.35
+            öğle                                     0.34
+ 4          akşam                                  -13.52
+            gece                                   -23.30
+            sabah                                    1.92
+            öğle                                     7.58
+ 5          akşam                                    4.43
+
+
+kar_zarar_orani_kalkis_saat_kategori = df.groupby("kalkis_saat_kategori").agg({"karzarar_oranı%(günlük)": "median"})
+
+print(kar_zarar_orani_kalkis_saat_kategori)
+
+kalkis_saat_kategori                         
+akşam                                   -4.25
+gece                                   -26.42
+sabah                                  -15.28
+öğle                                     2.77
+
+
+karzarar_oranı_kalkıssaati=df.groupby("kalkis_saat_kategori").agg({"karzarar_oranı%(günlük)":"median"})
+print(karzarar_oranı_kalkıssaati)
+
+
+      karzarar_oranı%(günlük)
+kalkis_saat_kategori                         
+akşam                                   -4.25
+gece                                   -26.42
+sabah                                  -15.28
+öğle                                     2.77
+
+
+karzarar_oranıay=df.groupby("ay").agg({"karzarar_oranı%(günlük)":"median"})
+print(karzarar_oranıay)
+
+
+ay                                
+August                        2.77
+December                    -36.11
+July                          6.03
+November                    -35.28
+October                     -25.35
+September                     1.75
+
+
+plt.figure(figsize=(10, 6))
+sns.barplot(data=karzarar_oranıay, x='ay', y='karzarar_oranı%(günlük)', palette='viridis')
+plt.title('Aylara Göre Kar Zarar Oranı (Günlük) - Medyan')
+plt.xlabel('Ay')
+plt.ylabel('Kar Zarar Oranı (Günlük) Medyan')
+plt.xticks(rotation=45)  
+plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.tight_layout()
+plt.show()
+
+
+yolcu_sayısı_mevsim=df.groupby(["yolcu_hattı","gun_sefer_sayisi","hafta_gunu_isim","ay"]).agg({"karzarar_oranı%(günlük)":"median"}).sort_values(by="karzarar_oranı%(günlük)",ascending=False)
+print(yolcu_sayısı_mevsim)
+
+yolcu_hattı                                        gun_sefer_sayisi hafta_gunu_isim ay                                
+Sarıyer_Büyükada                                   137              Thursday        July                         77.66
+Beykoz_Büyükada                                    124              Wednesday       July                         75.68
+Büyükada_Beykoz                                    124              Wednesday       July                         75.68
+Kanlıca_Sedef Adası                                52               Sunday          July                         75.33
+Sedef Adası_Kanlıca                                52               Sunday          July                         75.33
+Çubuklu_Büyükada                                   88               Saturday        July                         73.95
+Büyükada_Çubuklu                                   52               Sunday          July                         73.95
+Büyükada_İstinye Tekne Park                        137              Thursday        July                         73.72
+İstinye_Büyükada                                   82               Friday          July                         73.61
+Tarabya Tekne Park_Büyükada Beltur Otel            157              Friday          July                         71.35
+Sarıyer_Büyükada                                   134              Thursday        August                       70.14
+Büyükada_Sarıyer                                   138              Sunday          October                      70.14
+Sarıyer_Büyükada                                   161              Sunday          August                       70.14
+Yeniköy_Kınalıada                                  137              Thursday        July                         69.99
+                                                   81               Tuesday         July                         69.99
+Büyükada_Büyükdere                                 136              Sunday          October                      69.92
+Büyükdere_Büyükada                                 136              Sunday          October                      69.92
+Büyükada_Bebek                                     52               Sunday          July                         69.62
+
+yolcu_sayısı_iskele=df.groupby(["yolcu_hattı","hafta_gunu_isim","ay","gun_sefer_sayisi","karzarar oranı%(günlük)"]).agg({"yolcusayisi":"mean"}).sort_values(by="yolcusayisi",ascending=False)
+print(yolcu_sayısı_iskele)
+
+yolcu_hattı                                        hafta_gunu_isim ay        gun_sefer_sayisi karzarar oranı%(günlük)             
+Burgazada_Balat                                    Sunday          August    194              53.35                          10.00
+Kabataş_Yeniköy                                    Sunday          September 120              32.28                          10.00
+Bostancı_Büyükada                                  Sunday          August    57               11.65                          10.00
+Maltepe_Heybeliada                                 Monday          July      58               -38.23                         10.00
+Burgazada_İstinye Arabalı                          Saturday        August    141              63.17                          10.00
+Bebek_Büyükada                                     Thursday        September 121              61.51                          10.00
+Kabataş_Yeniköy                                    Wednesday       October   88               32.28                          10.00
+Maltepe_Heybeliada                                 Saturday        September 95               -38.23                         10.00
+Kabataş_Sütlüce                                    Friday          November  99               -9.35                          10.00
+Kabataş_Kınalıada                                  Tuesday         September 90               41.47                          10.00
+Galataport İstanbul_Çengelköy                      Thursday        August    122              -25.35                         10.00
+Kabataş_Sedef Adası                                Saturday        September 95               58.53                          10.00
+Burgazada_Sedef Adası                              Saturday        July      214              16.15                          10.00
+Galataport İstanbul_Çengelköy                      Thursday        July      40               -25.35                         10.00
+Maltepe_Heybeliada                                 Sunday          September 84               -38.23                         10.00
+Bostancı_Büyükada                                  Thursday        July      137              14.24                          10.00
+Büyükada Beltur Otel_Bostancı                      Friday          November  95               34.37                          10.00
+Arnavutköy_Kandilli                                Sunday          August    131              -218.82                        10.00
+Tersane İstanbul_Kadıköy (Eski)                    Sunday          September 120              3.61                           10.00
+Büyükada Beltur Otel_Bostancı                      Monday          October   66               34.37                          10.00
+Kabataş_Üsküdar                                    Saturday        September 220              -219.01                        10.00
+Bostancı_Büyükada                                  Monday          September 67               11.65                          10.00
+Büyükada Beltur Otel_Bostancı                      Saturday        September 95               34.37                          10.00
+                                                   Sunday          October   95               34.37                          10.00
+                                                                             183              34.37                          10.00
+                                                   Thursday        November  59               34.37                          10.00
+                                                                             82               34.37                          10.00
+                                                                   September 104              34.37                          10.00
+                                                   Tuesday         August    65               34.37                          10.00
+                                                                   October   60               34.37                          10.00
+                                                   Wednesday       December  50               34.37                          10.00
+
+
+
+  **********# PREPROCESS************
+
+  kategorik=df.select_dtypes(include=["object","bool"]).columns
+sayısal=df.select_dtypes(include=["int","float"]).columns
+zaman=df.select_dtypes(exclude=["int","float","object"]).columns
+print(f"Kategorik Değişkenler:{kategorik}")
+print(f"Sayısal Değişkenler:{sayısal}")
+print(f"Zaman Değişkenleri:{zaman}")
+Kategorik Değişkenler:Index(['kalkis_saat_kategori', 'hafta_gunu_isim', 'ay', 'yolculuk_kategorisi',
+       'yolcu_hattı', 'kar_mı_zarar_mı'],
+      dtype='object')
+Sayısal Değişkenler:Index(['toplamucret', 'yolcusayisi', 'yolculuksuresi(dk)',
+       'dakikalık_sefer_ücreti(tl)', 'tahminipersonel_ücreti(günlük)',
+       'toplam_maliyet', 'kar_zarar_tutarı(günlük)', 'karzarar_oranı%(günlük)',
+       'gun_sefer_sayisi'],
+      dtype='object')
+Zaman Değişkenleri:Index(['talep_edilen_yolculuk_saati'], dtype='object')
+
+
+  dominant_list = []
+
+for col in kategorik:
+    dominant = df[col].value_counts(normalize=True).max()
+
+    if dominant > 0.90:
+        print(f"{col} Dominant Değer var:{dominant}")
+        dominant_list.append(col)
+    else:
+        print(f"{col} Dominant Değer Yok")
+
+print("Dominant Değerlere sahip sütunlar:", dominant_list)
+
+
+kalkis_saat_kategori Dominant Değer Yok
+hafta_gunu_isim Dominant Değer Yok
+ay Dominant Değer Yok
+yolculuk_kategorisi Dominant Değer Yok
+yolcu_hattı Dominant Değer Yok
+kar_mı_zarar_mı Dominant Değer Yok
+Dominant Değerlere sahip sütunlar: []
+
+
+dominant_list1 = []
+
+for col in sayısal:
+    dominant = df[col].value_counts(normalize=True).max()
+
+    if dominant > 0.90:
+        print(f"{col} Dominant Değer var")
+        dominant_list1.append(col)
+    else:
+        print(f"{col} Dominant Değer Yok")
+
+print("Dominant Değerlere sahip sütunlar:", dominant_list1)
+
+
+toplamucret Dominant Değer Yok
+yolcusayisi Dominant Değer Yok
+yolculuksuresi(dk) Dominant Değer Yok
+dakikalık_sefer_ücreti(tl) Dominant Değer Yok
+tahminipersonel_ücreti(günlük) Dominant Değer var
+toplam_maliyet Dominant Değer Yok
+kar_zarar_tutarı(günlük) Dominant Değer Yok
+karzarar_oranı%(günlük) Dominant Değer Yok
+gun_sefer_sayisi Dominant Değer Yok
+Dominant Değerlere sahip sütunlar: ['tahminipersonel_ücreti(günlük)']
+
+
+dusuk_gozlem_birimi_list_sayısal = []
+
+for col in sayısal:
+    unique_count = df[col].nunique()
+
+    if unique_count >6734:
+        print(f"{col} Düşük gözlem birimi var: {unique_count} benzersiz değer")
+        dusuk_gozlem_birimi_list_sayısal.append(col)
+    else:
+        print(f"{col} Düşük gözlem birimi yok: {unique_count} benzersiz değer")
+
+
+print("Düşük Oranda Gözlem Birimine Sahip Sütunlar:", dusuk_gozlem_birimi_list_sayısal)
+
+
+toplamucret Düşük gözlem birimi yok: 548 benzersiz değer
+yolcusayisi Düşük gözlem birimi yok: 12 benzersiz değer
+yolculuksuresi(dk) Düşük gözlem birimi yok: 513 benzersiz değer
+dakikalık_sefer_ücreti(tl) Düşük gözlem birimi yok: 513 benzersiz değer
+tahminipersonel_ücreti(günlük) Düşük gözlem birimi yok: 1 benzersiz değer
+toplam_maliyet Düşük gözlem birimi yok: 513 benzersiz değer
+kar_zarar_tutarı(günlük) Düşük gözlem birimi yok: 581 benzersiz değer
+karzarar_oranı%(günlük) Düşük gözlem birimi yok: 581 benzersiz değer
+gun_sefer_sayisi Düşük gözlem birimi yok: 102 benzersiz değer
+Düşük Oranda Gözlem Birimine Sahip Sütunlar: []
+
+
+dusuk_gozlem_birimi_list = []
+
+for col in kategorik:
+    unique_count = df[col].nunique()
+
+    if unique_count > 1266 :
+        print(f"{col} Düşük gözlem birimi var: {unique_count} benzersiz değer")
+        dusuk_gozlem_birimi_list.append(col)
+    else:
+        print(f"{col} Düşük gözlem birimi yok: {unique_count} benzersiz değer")
+
+
+print("Düşük Oranda Gözlem Birimine Sahip Sütunlar:", dusuk_gozlem_birimi_list)
+
+
+
+kalkis_saat_kategori Düşük gözlem birimi yok: 4 benzersiz değer
+hafta_gunu_isim Düşük gözlem birimi yok: 7 benzersiz değer
+ay Düşük gözlem birimi yok: 6 benzersiz değer
+yolculuk_kategorisi Düşük gözlem birimi yok: 3 benzersiz değer
+yolcu_hattı Düşük gözlem birimi yok: 1266 benzersiz değer
+kar_mı_zarar_mı Düşük gözlem birimi yok: 2 benzersiz değer
+Düşük Oranda Gözlem Birimine Sahip Sütunlar: []
+
+df.drop("tahminipersonel_ücreti(günlük)",axis=1,inplace=True)
+
+
+  kategorik=df.select_dtypes(include=["object","bool"]).columns
+sayısal=df.select_dtypes(include=["int","float"]).columns
+zaman=df.select_dtypes(exclude=["int","float","object"]).columns
+print(f"Kategorik Değişkenler:{kategorik}")
+print(f"Sayısal Değişkenler:{sayısal}")
+print(f"Zaman Değişkenleri:{zaman}")
+
+
+Kategorik Değişkenler:Index(['kalkis_saat_kategori', 'hafta_gunu_isim', 'ay', 'yolculuk_kategorisi',
+       'yolcu_hattı', 'kar_mı_zarar_mı'],
+      dtype='object')
+Sayısal Değişkenler:Index(['toplamucret', 'yolcusayisi', 'yolculuksuresi(dk)',
+       'dakikalık_sefer_ücreti(tl)', 'toplam_maliyet',
+       'kar_zarar_tutarı(günlük)', 'karzarar_oranı%(günlük)',
+       'gun_sefer_sayisi'],
+      dtype='object')
+Zaman Değişkenleri:Index(['talep_edilen_yolculuk_saati'], dtype='object')
+
+
+
+#### Korelasyon Analizi #####
+
+sayısal = df.select_dtypes(include=["int", "float"]).columns
+
+correlation_matrix = df[sayısal].corr()
+
+plt.figure(figsize=(14, 10))
+sns.set(font_scale=1.2)
+heatmap = sns.heatmap(
+    correlation_matrix,
+    annot=True,
+    fmt=".2f",
+    cmap='coolwarm',
+    square=True,
+    cbar_kws={"shrink": .8},
+    linewidths=0.5,
+    linecolor='gray'
+)
+
+plt.title('Correlation Heatmap of Numerical Variables', fontsize=18)
+plt.xticks(rotation=45)
+plt.yticks(rotation=0)
+plt.tight_layout()
+plt.show()
+
