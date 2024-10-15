@@ -1,0 +1,227 @@
+from scipy import stats
+
+sayisal_degiskenler = df.select_dtypes(include=["int", "float"]).columns
+
+normallik_sonuclari = []
+
+for degisken in sayisal_degiskenler:
+    shapiro_test = stats.shapiro(df[degisken])
+    ks_test = stats.kstest(df[degisken], 'norm', args=(np.mean(df[degisken]), np.std(df[degisken], ddof=1)))
+    anderson_test = stats.anderson(df[degisken], dist='norm')
+
+    normallik_sonuclari.append({
+        "Değişken": degisken,
+        "Shapiro-Wilk p-değeri": shapiro_test.pvalue,
+        "Kolmogorov-Smirnov p-değeri": ks_test.pvalue,
+        "Anderson-Darling p-değeri": anderson_test.statistic
+    })
+
+normallik_sonuclari_df = pd.DataFrame(normallik_sonuclari)
+
+print(normallik_sonuclari_df)
+
+
+  Değişken  Shapiro-Wilk p-değeri  \
+0                     toplamucret                   0.00   
+1                     yolcusayisi                   0.00   
+2              yolculuksuresi(dk)                   0.00   
+3      dakikalık_sefer_ücreti(tl)                   0.00   
+4  tahminipersonel_ücreti(günlük)                   1.00   
+5                  toplam_maliyet                   0.00   
+6        kar_zarar_tutarı(günlük)                   0.00   
+7         karzarar_oranı%(günlük)                   0.00   
+8                gun_sefer_sayisi                   0.00   
+
+   Kolmogorov-Smirnov p-değeri  Anderson-Darling p-değeri  
+0                         0.00                     536.25  
+1                         0.00                    1090.51  
+2                         0.00                     746.53  
+3                         0.00                     746.53  
+4                         0.00                    6046.55  
+5                         0.00                     746.53  
+6                         0.00                     531.15  
+7                         0.00                     839.58  
+8                         0.00                     115.38
+
+
+sayisal_degiskenler = df.select_dtypes(include=["int", "float"]).columns
+
+num_vars = len(sayisal_degiskenler)
+fig, axs = plt.subplots(num_vars, 2, figsize=(12, 4 * num_vars))
+
+for i, degisken in enumerate(sayisal_degiskenler):
+    sns.histplot(df[degisken], kde=True, ax=axs[i, 0], color='blue')
+    axs[i, 0].set_title(f'{degisken} Histogram')
+    axs[i, 0].set_xlabel(degisken)
+    axs[i, 0].set_ylabel('Frekans')
+
+    stats.probplot(df[degisken], dist="norm", plot=axs[i, 1])
+    axs[i, 1].set_title(f'{degisken} Q-Q Grafiği')
+
+plt.tight_layout()
+plt.show()
+
+
+
+from scipy.stats import kruskal
+import scikit_posthocs as sp
+import pandas as pd
+
+group1 = df[df['yolculuksuresi(dk)'] == 3.15]['kar_zarar_tutarı(günlük)'].dropna()
+group2 = df[df['yolculuksuresi(dk)'] == 57.40]['kar_zarar_tutarı(günlük)'].dropna()
+group3 = df[df['yolculuksuresi(dk)'] == 37.20]['kar_zarar_tutarı(günlük)'].dropna()
+
+print(f"yolculuksuresi(dk) 1 Grubu Yolcu Sayısı: {len(group1)}")
+print(f"yolculuksuresi(dk) 2 Grubu Yolcu Sayısı: {len(group2)}")
+print(f"yolculuksuresi(dk) 3 Grubu Yolcu Sayısı: {len(group3)}")
+
+if len(group1) > 0 and len(group2) > 0 and len(group3) > 0:
+    stat, p_value = kruskal(group1, group2, group3)
+    print(f"Kruskal-Wallis H Testi: Test İstatistiği = {stat}, p-değeri = {p_value}")
+
+    groups = [group1, group2, group3]
+    dunn_test = sp.posthoc_dunn(groups, p_adjust='holm')
+    print("Dunn's Testi Sonuçları:")
+    print(dunn_test)
+else:
+    print("Bir veya daha fazla grup yeterli gözlem içermiyor.")
+
+
+
+# Genel Değerlendirme
+#Kısa Yolculuk Süreleri (3.15 dk): Bu grup, diğer gruplara göre kar zarar tutarını olumlu yönde etkilemektedir. Yani, kısa süreli yolculuklar daha yüksek kar oranları sağlayabilir.
+
+#Uzun Yolculuk Süreleri (57.40 dk ve 37.20 dk): Bu gruplar arasında anlamlı bir fark bulunmamaktadır, ancak her iki grup da 3.15 dk grubuna göre daha düşük kar zarar oranlarına sahip olabilir.
+
+#Sonuç: Uzun süren yolculukların, karlılığı artırmadığı ve hatta karlılık oranını düşürdüğü sonucu çıkmaktadır. Dolayısıyla, yolculuk sürelerinin uzaması, işletmenin karını olumsuz etkileyebilir.
+yolculuksuresi(dk) 1 Grubu Yolcu Sayısı: 71
+yolculuksuresi(dk) 2 Grubu Yolcu Sayısı: 71
+yolculuksuresi(dk) 3 Grubu Yolcu Sayısı: 13
+Kruskal-Wallis H Testi: Test İstatistiği = 153.23988153998033, p-değeri = 5.301301687443297e-34
+Dunn's Testi Sonuçları:
+     1    2    3
+1 1.00 0.00 0.00
+2 0.00 1.00 0.00
+3 0.00 0.00 1.00
+
+
+import statsmodels.api as sm
+
+X = df['yolculuksuresi(dk)']
+y = df['kar_zarar_tutarı(günlük)']
+
+X = sm.add_constant(X)
+model = sm.OLS(y, X).fit()
+print(model.summary())
+# En yüksek kar oranı, 3.15 dk yolculuk süresi ile elde edilmiştir.
+#Eğer yolculuk süresinin artışı, kar zarar oranını etkiliyorsa, bu durumda daha kısa sürelerin kar zarar oranını artırma potansiyeli yüksek görünüyor.
+#Öneri
+#Yolculuk süresinin artırılması yerine, 3.15 dakikalık süreyi hedef alarak daha fazla kar elde etmeye çalışmak faydalı olabilir.
+# Bu sonuçlarla birlikte, uygulama sürecinde bu yolculuk sürelerinin optimizasyonu üzerinde çalışmak, karlılığı artırabilir.
+
+                               OLS Regression Results                               
+====================================================================================
+Dep. Variable:     kar_zarar_tutarı(günlük)   R-squared:                       0.987
+Model:                                  OLS   Adj. R-squared:                  0.987
+Method:                       Least Squares   F-statistic:                 1.211e+06
+Date:                      Sat, 12 Oct 2024   Prob (F-statistic):               0.00
+Time:                              12:23:30   Log-Likelihood:                -83312.
+No. Observations:                     15652   AIC:                         1.666e+05
+Df Residuals:                         15650   BIC:                         1.666e+05
+Df Model:                                 1                                         
+Covariance Type:                  nonrobust                                         
+======================================================================================
+                         coef    std err          t      P>|t|      [0.025      0.975]
+--------------------------------------------------------------------------------------
+const               -518.7177      0.644   -805.162      0.000    -519.981    -517.455
+yolculuksuresi(dk)    29.8786      0.027   1100.446      0.000      29.825      29.932
+==============================================================================
+Omnibus:                     6399.509   Durbin-Watson:                   1.696
+Prob(Omnibus):                  0.000   Jarque-Bera (JB):           173557.966
+Skew:                           1.382   Prob(JB):                         0.00
+Kurtosis:                      19.078   Cond. No.                         38.6
+==============================================================================
+
+
+
+*********************** # Yolculuk Süresini %10 artırsak Kar zarar oranı*******************
+
+
+group1 = df[df['yolculuksuresi(dk)'] == 3.15]['kar_zarar_tutarı(günlük)'].dropna()
+group2 = df[df['yolculuksuresi(dk)'] == 57.40]['kar_zarar_tutarı(günlük)'].dropna()
+group3 = df[df['yolculuksuresi(dk)'] == 37.20]['kar_zarar_tutarı(günlük)'].dropna()
+
+stat, p_value = stats.kruskal(group1, group2, group3)
+print(f"Kruskal-Wallis H Testi: Test İstatistiği = {stat}, p-değeri = {p_value}")
+
+groups = [group1, group2, group3]
+dunn_test = sp.posthoc_dunn(groups, p_adjust='holm')
+print("Dunn's Testi Sonuçları:")
+print(dunn_test)
+
+new_yolculuk_suresi = df['yolculuksuresi(dk)'] * 1.10
+df['new_kar_zarar_tutarı(günlük)'] = -518.7177 + (29.8786 * new_yolculuk_suresi)
+
+new_group = df['new_kar_zarar_tutarı(günlük)']
+
+t_stat, t_p_value = stats.ttest_ind(df['kar_zarar_tutarı(günlük)'].dropna(), new_group.dropna())
+print(f"T-Testi: Test İstatistiği = {t_stat}, p-değeri = {t_p_value}")
+ Yolculuk Süresini %10 artırsak Kar zarar oranı 
+En yüksek kar oranı, 3.15 dk yolculuk süresi ile elde edilmiştir.
+Eğer yolculuk süresinin artışı, kar zarar oranını etkiliyorsa, bu durumda daha kısa sürelerin kar zarar oranını artırma potansiyeli yüksek görünüyor.
+Öneri
+Yolculuk süresinin artırılması yerine, 3.15 dakikalık süreyi hedef alarak daha fazla kar elde etmeye çalışmak faydalı olabilir.
+
+
+Kruskal-Wallis H Testi: Test İstatistiği = 153.23988153998033, p-değeri = 5.301301687443297e-34
+Dunn's Testi Sonuçları:
+     1    2    3
+1 1.00 0.00 0.00
+2 0.00 1.00 0.00
+3 0.00 0.00 1.00
+T-Testi: Test İstatistiği = -10.74924509200785, p-değeri = 6.657632853874561e-27
+
+
+
+
+group1 = df[df['hafta_gunu_isim'] == "Monday"]['kar_zarar_tutarı(günlük)'].dropna()
+group2 = df[df['hafta_gunu_isim'] == "Tuesday"	]['kar_zarar_tutarı(günlük)'].dropna()
+group3 = df[df['hafta_gunu_isim'] == "Wednesday"	]['kar_zarar_tutarı(günlük)'].dropna()
+group4 = df[df['hafta_gunu_isim'] == "Thursday"	]['kar_zarar_tutarı(günlük)'].dropna()
+group5 = df[df['hafta_gunu_isim'] == "Friday"	]['kar_zarar_tutarı(günlük)'].dropna()
+group6 = df[df['hafta_gunu_isim'] == "Saturday"	]['kar_zarar_tutarı(günlük)'].dropna()
+group7 = df[df['hafta_gunu_isim'] == "Sunday"	]['kar_zarar_tutarı(günlük)'].dropna()
+
+print(f"hafta_gunu_isim 1 Grubu Yolcu Sayısı: {len(group1)}")
+print(f"hafta_gunu_isim 2 Grubu Yolcu Sayısı: {len(group2)}")
+print(f"hafta_gunu_isim 3 Grubu Yolcu Sayısı: {len(group3)}")
+print(f"hafta_gunu_isim 4 Grubu Yolcu Sayısı: {len(group4)}")
+print(f"hafta_gunu_isim 5 Grubu Yolcu Sayısı: {len(group5)}")
+print(f"hafta_gunu_isim 6 Grubu Yolcu Sayısı: {len(group6)}")
+print(f"hafta_gunu_isim 7 Grubu Yolcu Sayısı: {len(group7)}")
+
+if len(group1) > 0 and len(group2) > 0 and len(group3) > 0:
+    stat, p_value = kruskal(group1, group2, group3)
+    print(f"Kruskal-Wallis H Testi: Test İstatistiği = {stat}, p-değeri = {p_value}")
+
+    groups = [group1, group2, group3]
+    dunn_test = sp.posthoc_dunn(groups, p_adjust='holm')
+    print("Dunn's Testi Sonuçları:")
+    print(dunn_test)
+else:
+    print("Bir veya daha fazla grup yeterli gözlem içermiyor.")
+
+
+hafta_gunu_isim 1 Grubu Yolcu Sayısı: 1679
+hafta_gunu_isim 2 Grubu Yolcu Sayısı: 1885
+hafta_gunu_isim 3 Grubu Yolcu Sayısı: 1952
+hafta_gunu_isim 4 Grubu Yolcu Sayısı: 2169
+hafta_gunu_isim 5 Grubu Yolcu Sayısı: 2434
+hafta_gunu_isim 6 Grubu Yolcu Sayısı: 2730
+hafta_gunu_isim 7 Grubu Yolcu Sayısı: 2803
+Kruskal-Wallis H Testi: Test İstatistiği = 0.8953327415275433, p-değeri = 0.6391178768753777
+Dunn's Testi Sonuçları:
+     1    2    3
+1 1.00 1.00 1.00
+2 1.00 1.00 1.00
+3 1.00 1.00 1.00
