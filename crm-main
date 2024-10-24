@@ -1,0 +1,209 @@
+import pandas as pd
+import datetime as dt
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+import warnings
+warnings.filterwarnings('ignore')
+df=pd.read_excel("/content/InteractiveSheet_2024-10-14_17_33_42.xlsx")
+
+df.head()
+
+df=df[df["iademiktarı"]==0.0]
+df["yolcu"] = df["yolcu"].str.title()
+df.head()
+df['transaction_count'] = df.groupby('yolcu')['phoneNumber'].transform('count')
+df.head()
+
+df.drop(columns=["iademiktarı"],inplace=True,axis=1)
+
+df.head()
+
+df["olusturmazamani"] = pd.to_datetime(df["olusturmazamani"], errors='coerce')
+today_date = dt.datetime(2024, 1, 7)
+df['total_spend'] = df.groupby('yolcu')['toplamucret'].transform('sum')
+
+
+R F M METRİKLERİ
+
+Recency,Frequency,Monetary
+
+df["olusturmazamani"].max()
+today_date=dt.datetime(2024,1,7)
+
+
+today_date = pd.to_datetime('2024-01-07')
+
+rfm = df.groupby('yolcu').agg({
+    "olusturmazamani": lambda x: (today_date - x.max()).days,
+    "toplamucret": 'sum',
+    "phoneNumber": 'count'
+}).rename(columns={
+    "olusturmazamani": "recency",
+    "toplamucret": "monetary",
+    "phoneNumber": "frequency"
+}).reset_index()
+
+rfm.head()
+
+
+
+yolcu	recency	monetary	frequency
+0	Bengisu Senbayrak	176.0	422.35	1
+1	Burçin Gözlüklü	9.0	1157.50	3
+2	Erdil Paşa	118.0	535.50	1
+3	Müge Öküç	100.0	504.50	1
+4	Sibel Demirci Sönmez	104.0	2994.00	2
+
+
+
+RFM SEGMENTLEME VE SKORLAMA
+
+
+rfm["recency_score"] = pd.qcut(rfm["recency"], 5, labels=[5,4,3,2,1])
+rfm["frequency_score"] = pd.qcut(rfm["frequency"].rank(method="first"), 5, labels=[1,2,3,4,5])
+rfm["monetary_score"] = pd.qcut(rfm["monetary"], 5, labels=[1,2,3,4,5])
+
+
+rfm["RFM_SCORE"] = (rfm["recency_score"].astype(str) + rfm["frequency_score"].astype(str))
+
+
+seg_map = {
+    r'[1-2][1-2]': 'kış uykusunda',  # hibernating
+    r'[1-2][3-4]': 'risk altında',   # at_Risk
+    r'[1-2]5': 'kaybetmememiz gereken',  # cant_loose
+    r'3[1-2]': 'uykuya dalmak üzere',  # about_to_sleep
+    r'33': 'ilgiye ihtiyaç var',  # need_attention
+    r'[3-4][4-5]': 'sadık müşteriler',  # loyal_customers
+    r'41': 'umut verici',  # promising
+    r'51': 'yeni müşteriler',  # new_customers
+    r'[4-5][2-3]': 'potansiyel sadıklar',  # potential_loyalists
+    r'5[4-5]': 'şampiyonlar'  # champions
+}
+rfm["segment"] = rfm["RFM_SCORE"].replace(seg_map, regex=True)
+
+
+
+
+yolcu	recency	monetary	frequency	recency_score	frequency_score	monetary_score	RFM_SCORE	segment
+0	Bengisu Senbayrak	176.0	422.35	1	1	1	1	11	kış uykusunda
+1	Burçin Gözlüklü	9.0	1157.50	3	5	4	3	54	şampiyonlar
+2	Erdil Paşa	118.0	535.50	1	2	1	2	21	kış uykusunda
+3	Müge Öküç	100.0	504.50	1	3	1	2	31	uykuya dalmak üzere
+4	Sibel Demirci Sönmez	104.0	2994.00	2	3	3	5	33	ilgiye ihtiyaç var
+
+
+CRM
+
+
+cltv_c=df.groupby("yolcu").agg({"toplamucret":"sum","phoneNumber":"count"})
+
+
+cltv_c=cltv_c.rename(columns={"toplamucret":"total_price","phoneNumber":"total_transaction"})
+
+cltv_c["avarage_order_value"]=cltv_c["total_price"]/cltv_c["total_transaction"]
+
+cltv_c["purchase_frequency"]=cltv_c["total_transaction"]/cltv_c.shape[0]
+repeat_rate=cltv_c[cltv_c["total_transaction"]>1].shape[0]/cltv_c.shape[0]
+churn_rate=1-repeat_rate
+# churn_rate=0.5455089820359281
+
+
+cltv_c["profit_margin"]=cltv_c["total_price"]*0.5
+cltv_c["customer_value"]=cltv_c["avarage_order_value"]*cltv_c["purchase_frequency"]
+cltv_c.sort_values(by="cltv",ascending=False).head()
+cltv_c["segment"]=pd.qcut(cltv_c["cltv"],4,labels=["D","C","B","A"])
+cltv_c["segment"].sort_values(ascending=False)
+
+
+yolcu	
+Selim Ozusta	A
+Betina Demişulam	A
+Bige Ishakoglu	A
+Kaan Arslan	A
+Bianka Canbazyan	A
+...	...
+Nihan Büyükgiray	D
+Cankat Kılıç	D
+Caner Discigil	D
+Nik Amana	D
+Bengisu Senbayrak	
+
+
+Müşteri Yaşam Boyu Değeri
+
+
+cltv_d=df.groupby("yolcu").agg({"olusturmazamani":[lambda date: (date.max()-date.min()).days,
+                                 lambda date:(today_date-date.max()).days],
+                                "toplamucret":"sum",
+                                "phoneNumber":"count"})
+cltv_d.columns=cltv_d.columns.droplevel(0)
+
+cltv_d.columns=["T","recency","monetary","frequency"]
+cltv_d["monetary"]=cltv_d["monetary"]/cltv_d["frequency"]
+
+cltv_d=cltv_d[cltv_d["frequency"]>1]
+invalid_data = cltv_d[cltv_d["recency"] > cltv_d["T"]]
+cltv_d.drop(invalid_data.index, inplace=True)
+
+cltv_d["recency"]=cltv_d["recency"]/7
+cltv_d["T"]=cltv_d["T"]/7
+
+
+# BG-NBD Modeli Kurulumu
+
+
+from lifetimes import BetaGeoFitter
+from lifetimes.plotting import plot_period_transactions
+bgf = BetaGeoFitter(penalizer_coef=0.001)
+bgf.fit(cltv_d["frequency"], cltv_d["recency"], cltv_d["T"])
+
+
+1 Hafta İçinde En Çok Satın Alma Beklediğimiz Müşteri
+
+
+cltv_d["oneweek"]=bgf.predict(1,cltv_d["frequency"],cltv_d["recency"],cltv_d["T"]).sort_values(ascending=False).head(10)
+
+
+1 ay
+
+
+cltv_d["fourweek"]=bgf.predict(4,cltv_d["frequency"],cltv_d["recency"],cltv_d["T"]).sort_values(ascending=False).head(20)
+
+
+Gamma Gamma Modelleme
+
+
+ggg=GammaGammaFitter(penalizer_coef=0.01)
+
+ggg.fit(cltv_d["frequency"],cltv_d["monetary"])
+
+cltv_d["gamma_gamma"]=ggg.conditional_expected_average_profit(cltv_d["frequency"],cltv_d["monetary"])
+
+
+CLTV Hesaplanması
+
+
+cltv=ggg.customer_lifetime_value(bgf,
+                               cltv_d["frequency"],
+                               cltv_d["recency"],
+                               cltv_d["T"],
+                               cltv_d["monetary"],
+                                 time=6,
+                                 freq="W")
+cltv_final=cltv_d.merge(cltv,on="yolcu",how="left")
+
+
+ Segmentleme
+
+
+ cltv_final["segment"]=pd.qcut(cltv_final["clv"],4,labels=["D","C","B","A"])
+
+
+
+ yolcu	T	recency	monetary	frequency	oneweek	fourweek	gamma gamma		clv	segment
+1465	İsmail Hakkı Ateş	0.037901	0.035402	1315.53125	8	13.297555	14.349812	1350.447220		19718.577758	A
+679	Hanna Romanishyna	0.064140	0.058309	1810.00000	3	NaN	NaN	1943.483672		18082.695383	A
+1393	Zeynep Sonmez	0.058309	0.053728	1780.00000	3	NaN	NaN	1911.292038		18004.605021	A
+1213	Sibel Çayır	0.064140	0.063307	1004.68750	8	13.504178	15.157785		1031.459616	16144.710963	A
+210	Banu Bolen	0.046647	0.046231	1490.00000	3	NaN	NaN	1600.106249		15920.463683	A
